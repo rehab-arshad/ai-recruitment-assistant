@@ -42,6 +42,17 @@ Return ONLY a JSON object — no markdown fences, no commentary — with these k
   "gaps":      array of requirements the resume does not evidence"""
 
 
+def _failed(candidate, why):
+    return {
+        "candidate": candidate,
+        "verdict": "review",
+        "score": 0,
+        "reasoning": f"Evaluation failed: {why}",
+        "evidence": [],
+        "gaps": [],
+    }
+
+
 def evaluate(job_spec, candidate, hits):
     excerpts = "\n\n---\n\n".join(
         f"[{i}] {h['text']}" for i, h in enumerate(hits, start=1)
@@ -51,14 +62,21 @@ def evaluate(job_spec, candidate, hits):
         f"RESUME EXCERPTS ({candidate}):\n\n{excerpts}"
     )
 
-    res = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": EVAL_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0,
-    )
+    try:
+        res = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": EVAL_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0,
+        )
+    except Exception as exc:
+        return _failed(candidate, str(exc))
+
+    # rate limits and provider errors come back with no choices at all
+    if not getattr(res, "choices", None):
+        return _failed(candidate, getattr(res, "error", None) or "no choices returned")
 
     raw = res.choices[0].message.content.strip()
     raw = raw.replace("```json", "").replace("```", "").strip()
