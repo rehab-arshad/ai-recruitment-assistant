@@ -9,8 +9,7 @@ from screen import JOB_SPEC, index_folder, match
 
 load_dotenv()
 
-LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
-
+LLM_MODEL = "openrouter/free"
 client = OpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
     base_url="https://openrouter.ai/api/v1",
